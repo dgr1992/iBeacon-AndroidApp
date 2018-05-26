@@ -38,6 +38,7 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
     private ListView _listView1;
 
     private BeaconActivity _activity;
+    private ArrayAdapter<DisplayBeacon> _adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,11 +50,13 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
         //Save reference for this activity
         _activity = this;
 
-        //Create the list for the beacons to display
-        _theBeacons = new ArrayList<DisplayBeacon>();
-
         //Get list view
         _listView1 = (ListView) findViewById(R.id.listView1);
+
+        //Create the list for the beacons to display
+        _theBeacons = new ArrayList<DisplayBeacon>();
+        _adapter = new ArrayAdapter<DisplayBeacon>(_activity,android.R.layout.simple_list_item_1,_theBeacons);
+        _listView1.setAdapter(_adapter);
 
         beaconManager = BeaconManager.getInstanceForApplication(this);
         //We need to tell the library how the layout of the different beacon types look like
@@ -129,24 +132,27 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
 
                 if (beacons.size() > 0) {
                     beacon = beacons.iterator().next();
-                    Log.i(TAG, "The first beacon I see is about " + beacon.getDistance() + " meters away.");
+                    Log.i(TAG, "The beacon I see is about " + beacon.getDistance() + " meters away.");
                     Log.i(TAG, "Reading…" + "\n" + "proximityUuid:" + " " + beacon.getId1() + "\n" +
                             "major:" + " " + beacon.getId2() + "\n" +
                             "minor:" + " " + beacon.getId3());
 
+                    //Create a displayBeacon for easier use
                     DisplayBeacon displayBeacon = new DisplayBeacon(beacon.getId1().toString(),beacon.getId2().toString(),beacon.getId3().toString(),beacon.getDistance());
-                    if(_theBeacons.contains(displayBeacon)) {
-                        for (DisplayBeacon currentBeacon : _theBeacons) {
-                            if (currentBeacon.equals(displayBeacon)) {
-                                currentBeacon.setDistance(displayBeacon.getDistance());
-                            }
-                        }
+                    //Check if the beacon is already in the list
+                    int posOfBeaconInList =_adapter.getPosition(displayBeacon);
+                    if(posOfBeaconInList >= 0) {
+                        //Get the beacon from the list and change the value
+                        DisplayBeacon beaconInList = _adapter.getItem(posOfBeaconInList);
+                        beaconInList.setDistance(displayBeacon.getDistance());
+                        //Notify that data has change so the list refreshes
+                        _adapter.notifyDataSetChanged();
                     } else {
-                        _theBeacons.add(displayBeacon);
+                        //Its a new beacon so add it to the list view
+                        //Automatically triggers refresh
+                        _adapter.add(displayBeacon);
                     }
                 }
-                ArrayAdapter<DisplayBeacon> adapter = new ArrayAdapter<DisplayBeacon>(_activity,android.R.layout.simple_list_item_1,_theBeacons);
-                _listView1.setAdapter(adapter);
             }
         });
 
@@ -155,11 +161,6 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
             @Override
             public void didEnterRegion(Region region) {
                 Log.i(TAG, "I just saw an beacon for the first time!");
-                try {
-                    //Add the region so, after this the beacon will show up in the range notifier
-                    beaconManager.startRangingBeaconsInRegion(region);
-                } catch (RemoteException e) {
-                }
             }
 
             @Override
@@ -170,10 +171,16 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
             @Override
             public void didDetermineStateForRegion(int state, Region region) {
                 Log.i(TAG, "I have just switched from seeing/not seeing beacons: "+state);
+                try {
+                    //Add the region so, after this the beacon will show up in the range notifier
+                    beaconManager.startRangingBeaconsInRegion(region);
+                } catch (RemoteException e) {
+                }
             }
         });
 
         try {
+            //Needed to start monitoring
             beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
         } catch (RemoteException e) {    }
     }

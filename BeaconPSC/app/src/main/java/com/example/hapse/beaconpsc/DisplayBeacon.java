@@ -32,7 +32,7 @@ public class DisplayBeacon {
     public String toString() {
         String distance = "";
         if(_distance< 1){
-            double tmpDistance = _distance * 10;
+            double tmpDistance = _distance * 100;
             NumberFormat formatter = new DecimalFormat("#0.00");
             distance = formatter.format(tmpDistance) + " cm";
         } else {
