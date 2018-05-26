@@ -10,13 +10,18 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import org.altbeacon.beacon.*;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
 
@@ -24,10 +29,15 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
     public static final String TAG = "MonitoringActivity";
     private BeaconManager beaconManager;
 
-    private TextView _myTextView;
+    //private TextView _myTextView;
 
     private static final int MY_PERMISSIONS_REQUEST_BLUETOOTH = 1;
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 2;
+
+    private List<DisplayBeacon> _theBeacons;
+    private ListView _listView1;
+
+    private BeaconActivity _activity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,8 +46,14 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
 
         checkPermissions();
 
-        //Get reference to text view
-        _myTextView = (TextView) findViewById(R.id.myTextView);
+        //Save reference for this activity
+        _activity = this;
+
+        //Create the list for the beacons to display
+        _theBeacons = new ArrayList<DisplayBeacon>();
+
+        //Get list view
+        _listView1 = (ListView) findViewById(R.id.listView1);
 
         beaconManager = BeaconManager.getInstanceForApplication(this);
         //We need to tell the library how the layout of the different beacon types look like
@@ -110,6 +126,7 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
                 Beacon beacon;
+
                 if (beacons.size() > 0) {
                     beacon = beacons.iterator().next();
                     Log.i(TAG, "The first beacon I see is about " + beacon.getDistance() + " meters away.");
@@ -117,22 +134,19 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer{
                             "major:" + " " + beacon.getId2() + "\n" +
                             "minor:" + " " + beacon.getId3());
 
-                    //Format the distance
-                    String distance = "";
-                    if(beacon.getDistance() < 1){
-                        double tmpDistance = beacon.getDistance() * 10;
-                        NumberFormat formatter = new DecimalFormat("#0.00");
-                        distance = formatter.format(tmpDistance) + " cm";
+                    DisplayBeacon displayBeacon = new DisplayBeacon(beacon.getId1().toString(),beacon.getId2().toString(),beacon.getId3().toString(),beacon.getDistance());
+                    if(_theBeacons.contains(displayBeacon)) {
+                        for (DisplayBeacon currentBeacon : _theBeacons) {
+                            if (currentBeacon.equals(displayBeacon)) {
+                                currentBeacon.setDistance(displayBeacon.getDistance());
+                            }
+                        }
                     } else {
-                        NumberFormat formatter = new DecimalFormat("#0.00");
-                        distance = formatter.format(beacon.getDistance()) + " m";
+                        _theBeacons.add(displayBeacon);
                     }
-
-                    _myTextView.setText("UUID: " + beacon.getId1() + "\n" +
-                            "Distance: " + distance + "\n" +
-                            "Major: " + beacon.getId2() + "\n" +
-                            "Minor: " + beacon.getId3());
                 }
+                ArrayAdapter<DisplayBeacon> adapter = new ArrayAdapter<DisplayBeacon>(_activity,android.R.layout.simple_list_item_1,_theBeacons);
+                _listView1.setAdapter(adapter);
             }
         });
 
